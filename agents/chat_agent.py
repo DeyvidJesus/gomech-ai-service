@@ -1,10 +1,8 @@
 import asyncio
 import logging
 import os
-import io
-import base64
 from concurrent.futures import ThreadPoolExecutor
-from typing import Dict
+from typing import Optional, Dict
 
 from dotenv import load_dotenv
 from openai import BaseModel
@@ -15,8 +13,8 @@ from langgraph.graph import START, MessagesState, StateGraph
 from langgraph.checkpoint.memory import MemorySaver
 
 from schemas import ChatRequest
-from models import Conversation, Message, Client  # ← Certifique-se de importar Client
-from agents.router_agent import route_question  # Roteador LLM
+from models import Conversation, Message
+
 
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -30,6 +28,7 @@ executor = ThreadPoolExecutor(max_workers=4)
 # --- Locks para evitar race conditions por thread_id ---
 conversation_locks: Dict[str, asyncio.Lock] = {}
 
+
 def get_lock_for_thread(thread_id: str) -> asyncio.Lock:
     lock = conversation_locks.get(thread_id)
     if not lock:
@@ -37,53 +36,27 @@ def get_lock_for_thread(thread_id: str) -> asyncio.Lock:
         conversation_locks[thread_id] = lock
     return lock
 
+
 # --- Função de chamada síncrona do modelo ---
 def call_model_sync(state: MessagesState):
     response = model.invoke(state["messages"])
     return {"messages": response}
 
+
 # --- Grafo LangGraph ---
 chat_graph = StateGraph(state_schema=MessagesState)
 chat_graph.add_node("model", call_model_sync)
-chat_graph.add_edge(START, "model")  # ← ESSENCIAL
+chat_graph.add_edge(START, "model")  # ← ESSENCIAL: START aponta para o nó inicial
 checkpointer = MemorySaver()
 app_graph = chat_graph.compile(checkpointer=checkpointer)
 
-# --- Função para gerar gráfico de clientes em base64 ---
-def generate_clients_chart_base64(db: Session) -> str:
-    import matplotlib.pyplot as plt
-
-    clientes = (
-        db.query(Client.name, Client.registration_date)
-        .order_by(Client.registration_date.desc())
-        .limit(10)
-        .all()
-    )
-    if not clientes:
-        raise ValueError("Nenhum cliente encontrado para gerar gráfico")
-
-    nomes = [c[0] for c in clientes]
-    datas = [c[1].strftime("%Y-%m-%d") for c in clientes]
-
-    plt.figure(figsize=(10, 5))
-    plt.barh(nomes, range(len(nomes)), color='skyblue')
-    plt.xlabel("Número de Cadastro")
-    plt.title("Últimos Clientes Cadastrados")
-    plt.yticks(range(len(nomes)), datas)
-    plt.tight_layout()
-
-    buf = io.BytesIO()
-    plt.savefig(buf, format="png")
-    buf.seek(0)
-    plt.close()
-    return base64.b64encode(buf.read()).decode('utf-8')
 
 # --- Função principal de chat ---
 async def call_chat(req: ChatRequest, db: Session):
+    # --- Criar nova conversa caso não exista ---
     thread_id = req.thread_id
     user_message = req.message
 
-    # --- Criar nova conversa caso não exista ---
     if not thread_id:
         from uuid import uuid4
         thread_id = str(uuid4())
@@ -101,23 +74,6 @@ async def call_chat(req: ChatRequest, db: Session):
         if not conversation:
             raise ValueError("thread_id inválido")
 
-    # --- Verifica decisão do Router LLM ---
-    decision = route_question(user_message)
-    if decision == "grafico":
-        chart_base64 = generate_clients_chart_base64(db)
-        reply_message = "Aqui está o gráfico dos últimos clientes cadastrados."
-        # Persistir mensagem normalmente
-        try:
-            db.add(Message(conversation_id=conversation.id, role="user", content=user_message))
-            db.add(Message(conversation_id=conversation.id, role="ai", content=reply_message))
-            db.commit()
-        except Exception as e:
-            db.rollback()
-            logging.exception("Erro ao salvar mensagens: %s", e)
-            raise
-        return {"reply": reply_message, "chart_base64": chart_base64, "thread_id": thread_id}
-
-    # --- Lock para evitar race condition ---
     lock = get_lock_for_thread(thread_id)
     async with lock:
         # --- Reconstruir histórico ---
@@ -141,7 +97,7 @@ async def call_chat(req: ChatRequest, db: Session):
                         config={"configurable": {"thread_id": thread_id}}
                     )
                 ),
-                timeout=60.0,''
+                timeout=60.0,
             )
         except asyncio.TimeoutError:
             raise TimeoutError("Tempo esgotado ao consultar modelo")
