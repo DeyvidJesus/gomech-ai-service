@@ -9,6 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from agents.sql_agent import run_sql_agent
 from models import Base
 from agents.chat_agent import call_chat
+from agents.chart_agent import run_chart_agent
 
 from pydantic import BaseModel
 
@@ -46,8 +47,16 @@ async def chat(req: ChatRequest, db: Session = Depends(get_db)):
     try:
         route = route_question(req.message)
         if route == "sql":
-            answer = await run_sql_agent(req.message)
+            answer = run_sql_agent(req.message)
             return {"reply": answer, "thread_id": req.thread_id or "unknown"}
+        elif route == "grafico":
+            result = run_chart_agent(req.message)
+            return {
+                "reply": result.get("reply", ""),
+                "thread_id": req.thread_id or "unknown",
+                "image_base64": result.get("chart_base64"),
+                "image_mime": result.get("chart_mime"),
+            }
         else:
             return await call_chat(req, db)
     except ValueError as e:

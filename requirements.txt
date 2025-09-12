@@ -7,3 +7,9 @@ langchain
 langchain-core
 langgraph
 langsmith
+langchain-openai
+langchain-community
+pandas
+matplotlib
+seaborn
+pillow
