@@ -8,14 +8,15 @@ class Conversation(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     thread_id = Column(String, unique=True, index=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
+    user = relationship("User", back_populates="conversations")
     messages = relationship(
         "Message",
         back_populates="conversation",
         cascade="all, delete-orphan",
         lazy="selectin"
     )
-
 
 class Message(Base):
     __tablename__ = "messages"
@@ -26,3 +27,14 @@ class Message(Base):
     content = Column(Text, nullable=False)
 
     conversation = relationship("Conversation", back_populates="messages")
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), nullable=False, unique=True)
+    password = Column(String(255), nullable=False)
+    name = Column(String(255), nullable=False)
+    role = Column(String(255), nullable=False)
+
+    conversations = relationship("Conversation", back_populates="user")
