@@ -21,7 +21,19 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL não configurado")
 
-engine = create_engine(DATABASE_URL, future=True, pool_pre_ping=True)
+# Configurações de conexão mais robustas para produção
+engine = create_engine(
+    DATABASE_URL, 
+    future=True, 
+    pool_pre_ping=True,
+    pool_recycle=3600,  # Recicla conexões a cada hora
+    pool_size=5,        # Máximo 5 conexões no pool
+    max_overflow=10,    # Máximo 10 conexões extras
+    connect_args={
+        "connect_timeout": 30,
+        "application_name": "gomech-ai-service"
+    }
+)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 
 # Em produção, as tabelas são criadas via Alembic migrations
@@ -80,23 +92,53 @@ async def get_service_status():
         
         # Verifica conexão com banco de dados
         try:
-            db_test = SessionLocal()
-            # Testa conexão e acesso à tabela clients
-            result = db_test.execute(text("SELECT name FROM clients LIMIT 1"))
-            client_count = db_test.execute(text("SELECT COUNT(*) as count FROM clients")).fetchone()
-            db_test.close()
+            from utils.database import test_database_connection, get_database_info
             
-            status_info["components"]["database"] = {
-                "status": "healthy",
-                "message": "Conexão com PostgreSQL estabelecida",
-                "tables_accessible": True,
-                "client_count": client_count[0] if client_count else 0
-            }
+            # Testa conexão básica
+            if test_database_connection(engine):
+                db_info = get_database_info(engine)
+                
+                # Testa acesso às tabelas específicas
+                db_test = SessionLocal()
+                try:
+                    # Verifica se as tabelas existem
+                    tables_check = db_test.execute(text("""
+                        SELECT table_name 
+                        FROM information_schema.tables 
+                        WHERE table_schema = 'public' 
+                        AND table_name IN ('clients', 'conversations', 'messages')
+                    """)).fetchall()
+                    
+                    table_names = [row[0] for row in tables_check]
+                    
+                    # Conta registros se as tabelas existem
+                    client_count = 0
+                    conversation_count = 0
+                    if 'clients' in table_names:
+                        client_count = db_test.execute(text("SELECT COUNT(*) FROM clients")).fetchone()[0]
+                    if 'conversations' in table_names:
+                        conversation_count = db_test.execute(text("SELECT COUNT(*) FROM conversations")).fetchone()[0]
+                    
+                    status_info["components"]["database"] = {
+                        "status": "healthy",
+                        "message": "Conexão com PostgreSQL estabelecida",
+                        "version": db_info.get("version", "Unknown")[:50] + "..." if db_info.get("version") else "Unknown",
+                        "active_connections": db_info.get("active_connections", 0),
+                        "tables_available": table_names,
+                        "client_count": client_count,
+                        "conversation_count": conversation_count
+                    }
+                finally:
+                    db_test.close()
+            else:
+                raise Exception("Falha no teste de conexão")
+                
         except Exception as e:
             status_info["components"]["database"] = {
                 "status": "error",
                 "message": f"Erro na conexão com banco: {str(e)}",
-                "tables_accessible": False
+                "tables_accessible": False,
+                "error_type": type(e).__name__
             }
             status_info["status"] = "degraded"
         
