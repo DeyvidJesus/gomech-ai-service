@@ -42,4 +42,4 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
 RUN chmod +x start.sh
 
 # Run migrations and start server
-CMD ["./start.sh"]
+CMD ["sh", "-c", "python -m alembic upgrade head && gunicorn main:app -w 2 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000"]

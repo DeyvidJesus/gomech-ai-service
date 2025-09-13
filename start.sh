@@ -19,7 +19,7 @@ echo "✅ Variáveis de ambiente verificadas"
 
 # Executa migrações do banco de dados
 echo "🔄 Executando migrações do banco de dados..."
-alembic upgrade head
+python -m alembic upgrade head
 
 if [ $? -eq 0 ]; then
     echo "✅ Migrações executadas com sucesso"
