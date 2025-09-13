@@ -10,7 +10,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 db = SQLDatabase.from_uri(DATABASE_URL)
-_sql_llm = ChatOpenAI(model="gpt-4.1", temperature=0, api_key=OPENAI_API_KEY)
+_sql_llm = ChatOpenAI(model="gpt-4o-mini", temperature=0, api_key=OPENAI_API_KEY)
 
 sql_agent = create_sql_agent(
     llm=_sql_llm,

@@ -1,15 +1,28 @@
-fastapi
-uvicorn
-sqlalchemy
-psycopg2-binary
-python-dotenv
-langchain
-langchain-core
-langgraph
-langsmith
-langchain-openai
-langchain-community
-pandas
-matplotlib
-seaborn
-pillow
+# Core FastAPI and server
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# Database
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+alembic==1.12.1
+
+# Environment and configuration
+python-dotenv==1.0.0
+
+# LangChain and AI
+langchain==0.1.0
+langchain-core==0.1.0
+langgraph==0.0.26
+langsmith==0.0.69
+langchain-openai==0.0.2
+langchain-community==0.0.10
+
+# Data processing and visualization
+pandas==2.1.4
+matplotlib==3.8.2
+seaborn==0.13.0
+pillow==10.1.0
+
+# Production dependencies
+gunicorn==21.2.0

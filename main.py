@@ -24,8 +24,8 @@ if not DATABASE_URL:
 engine = create_engine(DATABASE_URL, future=True, pool_pre_ping=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 
-# Cria tabelas (somente para DEV — em produção usar Alembic)
-Base.metadata.create_all(bind=engine)
+# Em produção, as tabelas são criadas via Alembic migrations
+# Base.metadata.create_all(bind=engine)  # Removido para produção
 
 app = FastAPI(title="Chatbot Service Async")
 
@@ -166,14 +166,18 @@ if __name__ == "__main__":
     
     # Configurações do servidor (usa PORT do .env)
     HOST = os.getenv("HOST", "0.0.0.0")
-    PORT = int(os.getenv("PORT", "5060"))
+    PORT = int(os.getenv("PORT", "8000"))
+    ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
     
-    logging.info(f"Iniciando Gomech AI Service em {HOST}:{PORT}")
+    logging.info(f"Iniciando Gomech AI Service em {HOST}:{PORT} (env: {ENVIRONMENT})")
+    
+    # Configurações diferentes para dev e prod
+    reload_enabled = ENVIRONMENT == "development"
     
     uvicorn.run(
         "main:app",
         host=HOST,
         port=PORT,
-        reload=True,
+        reload=reload_enabled,
         log_level="info"
     )
