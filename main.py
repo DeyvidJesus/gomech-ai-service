@@ -23,7 +23,9 @@ if not DATABASE_URL:
 
 # Configurações de conexão mais robustas para produção
 engine = create_engine(
-    DATABASE_URL, 
+    DATABASE_URL,
+    poolclass=NullPool,
+    client_encoding="utf-8",
     future=True, 
     pool_pre_ping=True,
     pool_recycle=3600,  # Recicla conexões a cada hora
