@@ -1,8 +1,8 @@
 #!/bin/sh
 set -e
 
-echo "Aguardando banco de dados..."
-until pg_isready -d "$DATABASE_URL"; do
+until psql "$DATABASE_URL" -c '\q'; do
+  echo "Aguardando banco..."
   sleep 2
 done
 
