@@ -18,11 +18,9 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from pandas.api.types import is_numeric_dtype, is_datetime64_any_dtype
 
-
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL")
-
 
 class ChartPlan(BaseModel):
     chart_type: Literal[
