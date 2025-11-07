@@ -14,12 +14,13 @@ _router_llm = ChatOpenAI(model="gpt-4o-mini", temperature=0, api_key=OPENAI_API_
 _router_prompt = ChatPromptTemplate.from_messages([
     ("system", """
 Você é um roteador de mensagens.
-Decide se a pergunta deve ir para:
+Decida para onde enviar a pergunta:
 - SQL → se precisa de dados reais do banco (clients, vehicles, orders, etc.)
 - CHAT → se é conversa, explicação ou não envolve dados reais
-- GRÁFICO → se a pergunta pede visualização ou gráfico dos dados
+- GRÁFICO → se pede visualização ou gráfico dos dados
+- WEB → se pede informações externas, notícias, dados atuais ou coisas que não estão no banco da loja
 
-Responda apenas com: "sql", "chat" ou "grafico"
+Responda apenas com: "sql", "chat", "grafico" ou "web"
 """),
     ("human", "{question}")
 ])

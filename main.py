@@ -9,9 +9,9 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.pool import NullPool
 
 from agents.sql_agent import run_sql_agent
-from models import Base
 from agents.chat_agent import call_chat
 from agents.chart_agent import run_chart_agent
+from agents.web_agent import run_web_agent
 
 from router_agent import route_question
 from schemas import ChatResponse, ChatRequest
@@ -64,18 +64,17 @@ async def chat(req: ChatRequest, db: Session = Depends(get_db)):
                 "image_base64": result.get("chart_base64"),
                 "image_mime": result.get("chart_mime"),
             }
+        elif route == "web":
+            result = run_web_agent(req.message)
+            return {
+                "reply": result.get("reply", ""),
+                "thread_id": req.thread_id or "unknown",
+                "videos": result.get("videos", [])
+            }
         else:
             return await call_chat(req, db)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except TimeoutError as e:
-        raise HTTPException(status_code=504, detail=str(e))
-    except SQLAlchemyError as e:
-        logging.exception("Erro no banco: %s", e)
-        raise HTTPException(status_code=500, detail="Erro no banco de dados")
     except Exception as e:
-        logging.exception("Erro interno: %s", e)
-        raise HTTPException(status_code=500, detail="Erro interno")
+        print(e)
 
 
 @app.get("/status")
@@ -90,7 +89,6 @@ async def get_service_status():
             "components": {}
         }
 
-        # Verifica conexão com banco
         try:
             from utils.database import test_database_connection, get_database_info
 
@@ -121,8 +119,6 @@ async def get_service_status():
                         "tables_available": table_names,
                         "client_count": client_count,
                         "conversation_count": conversation_count,
-                        "db_host": DB_HOST,
-                        "db_name": DB_NAME
                     }
                 finally:
                     db_test.close()
@@ -138,7 +134,6 @@ async def get_service_status():
             }
             status_info["status"] = "degraded"
 
-        # Verifica agentes de IA
         try:
             from agents.sql_agent import run_sql_agent
             from agents.chat_agent import call_chat
@@ -156,7 +151,6 @@ async def get_service_status():
             }
             status_info["status"] = "degraded"
 
-        # Variáveis de ambiente críticas
         env_status = {}
         required_vars = ["DB_USER", "DB_PASS", "DB_HOST", "DB_PORT", "DB_NAME"]
         optional_vars = ["OPENAI_API_KEY", "LANGSMITH_API_KEY"]
