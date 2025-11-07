@@ -372,21 +372,22 @@ def run_chart_agent(question: str) -> Dict[str, Any]:
     try:
         plan = _plan_chart(question)
     except Exception as e:
-        return {"reply": f"Não consegui planejar a visualização automaticamente: {e}"}
+        return {"reply": f"🤔 Hmm, não consegui entender que tipo de gráfico você quer. Pode ser mais específico?\n\nExemplos:\n- 'Mostre um gráfico de barras com os veículos por marca'\n- 'Crie um gráfico de linha com as OSs ao longo do tempo'\n- 'Gráfico de pizza com status das ordens de serviço'\n\nErro técnico: {e}"}
 
     try:
         df = _df_from_plan(plan)
         if df.empty:
-            return {"reply": "Consulta retornou vazio. Não há dados para plotar."}
+            return {"reply": "😕 Ops! Não encontrei dados para criar esse gráfico. Tente ajustar sua consulta ou verifique se há dados disponíveis."}
     except Exception as e:
-        return {"reply": f"Falha ao obter dados: {e}"}
+        return {"reply": f"❌ Tive um problema ao buscar os dados para o gráfico.\n\n💡 Dica: Certifique-se de que as tabelas e colunas existem no sistema.\n\nDetalhes: {e}"}
 
     # Se o plano não possui colunas necessárias, ofereça sugestões em vez de falhar
     if not _chart_requirements_met(plan, df):
         suggestions_text = _suggest_charts_text(df, plan)
         suggestions_list = _suggest_charts_list(df, plan)
+        friendly_suggestions = "📊 Entendi que você quer um gráfico! Aqui estão algumas opções com os dados disponíveis:\n\n" + suggestions_text
         return {
-            "reply": suggestions_text,
+            "reply": friendly_suggestions,
             "suggestions": suggestions_list,
             "columns_by_type": _columns_by_type(df),
         }
@@ -395,12 +396,13 @@ def run_chart_agent(question: str) -> Dict[str, Any]:
         image_bytes = _plot_from_df(df, plan)
         b64 = base64.b64encode(image_bytes).decode("utf-8")
         caption = plan.explanation or explain_chart(df, plan)
+        friendly_caption = f"📊 Pronto! {caption}\n\n💡 Posso criar outros gráficos se você quiser!"
         return {
-            "reply": caption or "Aqui está o gráfico solicitado.",
+            "reply": friendly_caption,
             "chart_base64": b64,
             "chart_mime": "image/png",
         }
     except Exception as e:
-        return {"reply": f"Falha ao renderizar gráfico: {e}"}
+        return {"reply": f"😅 Quase lá! Consegui os dados mas tive um problema ao criar o gráfico.\n\n💡 Tente especificar o tipo de gráfico (barras, linha, pizza, etc).\n\nDetalhes: {e}"}
 
 

@@ -59,11 +59,28 @@ def run_web_agent(question: str) -> dict:
 
         videos = _search_youtube(query, max_results=3)
         if not videos:
-            return {"reply": "Não encontrei vídeos relevantes.", "videos": []}
+            return {
+                "reply": f"🤔 Hmm, não encontrei vídeos sobre '{query}' no YouTube. Tente usar palavras-chave diferentes!\n\n💡 Dica: Seja mais específico, por exemplo:\n- 'Troca de óleo do motor'\n- 'Alinhamento de direção passo a passo'\n- 'Como fazer balanceamento de rodas'", 
+                "videos": []
+            }
 
-        reply = f"Encontrei {len(videos)} vídeos sobre: {query}"
+        video_count = len(videos)
+        video_word = "vídeo" if video_count == 1 else "vídeos"
+        reply = f"🎥 Encontrei {video_count} {video_word} que podem te ajudar com '{query}'!\n\n👇 Confira as opções abaixo:"
+        
         return {"reply": reply, "videos": videos}
 
+    except requests.exceptions.HTTPError as e:
+        logger.error("❌ [WebAgent] Erro HTTP ao buscar no YouTube: %s", str(e), exc_info=True)
+        if "403" in str(e):
+            return {"reply": "🔑 A chave da API do YouTube está inválida ou sem permissões. Entre em contato com o suporte.", "videos": []}
+        elif "429" in str(e):
+            return {"reply": "⏱️ Ops! Atingimos o limite de buscas no YouTube por hoje. Tente novamente mais tarde.", "videos": []}
+        else:
+            return {"reply": f"😕 Tive um problema ao buscar no YouTube. Código: {e.response.status_code if hasattr(e, 'response') else 'desconhecido'}", "videos": []}
+    except requests.exceptions.ConnectionError:
+        logger.error("❌ [WebAgent] Erro de conexão com YouTube", exc_info=True)
+        return {"reply": "🌐 Não consegui conectar ao YouTube. Verifique sua conexão com a internet.", "videos": []}
     except Exception as e:
-        logger.error("❌ [WebAgent] Erro ao buscar no YouTube: %s", str(e), exc_info=True)
-        return {"reply": "Erro ao buscar vídeos no YouTube.", "videos": []}
+        logger.error("❌ [WebAgent] Erro inesperado: %s", str(e), exc_info=True)
+        return {"reply": "😅 Ops! Algo deu errado ao buscar vídeos. Tente novamente ou reformule sua busca.", "videos": []}

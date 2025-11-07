@@ -52,29 +52,58 @@ def get_db():
 @app.post("/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest, db: Session = Depends(get_db)):
     try:
+        # Roteamento inteligente
         route = route_question(req.message)
+        logging.info(f"🎯 [Router] Pergunta: '{req.message[:50]}...' → Rota: {route.upper()}")
+        
         if route == "sql":
             answer = run_sql_agent(req.message)
             return {"reply": answer, "thread_id": req.thread_id or "unknown"}
+            
         elif route == "grafico":
             result = run_chart_agent(req.message)
             return {
-                "reply": result.get("reply", ""),
+                "reply": result.get("reply", "Aqui está a visualização que você pediu! 📊"),
                 "thread_id": req.thread_id or "unknown",
                 "image_base64": result.get("chart_base64"),
                 "image_mime": result.get("chart_mime"),
             }
+            
         elif route == "web":
             result = run_web_agent(req.message)
             return {
-                "reply": result.get("reply", ""),
+                "reply": result.get("reply", "Encontrei alguns vídeos que podem te ajudar! 🎥"),
                 "thread_id": req.thread_id or "unknown",
                 "videos": result.get("videos", [])
             }
-        else:
+            
+        else:  # chat
             return await call_chat(req, db)
+            
+    except TimeoutError as e:
+        logging.error(f"⏱️ [Timeout] {str(e)}")
+        raise HTTPException(
+            status_code=408,
+            detail="⏱️ A consulta está demorando muito. Por favor, tente novamente ou simplifique sua pergunta."
+        )
+    except ValueError as e:
+        logging.error(f"❌ [ValueError] {str(e)}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"❌ Dados inválidos: {str(e)}"
+        )
+    except SQLAlchemyError as e:
+        logging.error(f"🗄️ [Database Error] {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="🗄️ Ops! Tivemos um problema ao acessar o banco de dados. Tente novamente em alguns instantes."
+        )
     except Exception as e:
-        print(e)
+        logging.exception(f"💥 [Unexpected Error] {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"😕 Ops! Algo inesperado aconteceu. Nossa equipe foi notificada. Por favor, tente novamente."
+        )
 
 
 @app.get("/status")
@@ -100,16 +129,35 @@ async def get_service_status():
                         SELECT table_name 
                         FROM information_schema.tables 
                         WHERE table_schema = 'public' 
-                        AND table_name IN ('clients', 'conversations', 'messages')
+                        AND table_name IN (
+                            'organizations', 'users', 'clients', 'vehicles', 
+                            'service_orders', 'service_order_items', 'parts', 
+                            'inventory_items', 'inventory_movements', 
+                            'conversations', 'messages'
+                        )
+                        ORDER BY table_name
                     """)).fetchall()
 
                     table_names = [row[0] for row in tables_check]
-                    client_count = 0
-                    conversation_count = 0
+                    
+                    # Contagens básicas
+                    stats = {}
+                    if 'organizations' in table_names:
+                        stats['organizations'] = db_test.execute(text("SELECT COUNT(*) FROM organizations")).fetchone()[0]
+                    if 'users' in table_names:
+                        stats['users'] = db_test.execute(text("SELECT COUNT(*) FROM users")).fetchone()[0]
                     if 'clients' in table_names:
-                        client_count = db_test.execute(text("SELECT COUNT(*) FROM clients")).fetchone()[0]
+                        stats['clients'] = db_test.execute(text("SELECT COUNT(*) FROM clients")).fetchone()[0]
+                    if 'vehicles' in table_names:
+                        stats['vehicles'] = db_test.execute(text("SELECT COUNT(*) FROM vehicles")).fetchone()[0]
+                    if 'service_orders' in table_names:
+                        stats['service_orders'] = db_test.execute(text("SELECT COUNT(*) FROM service_orders")).fetchone()[0]
+                    if 'parts' in table_names:
+                        stats['parts'] = db_test.execute(text("SELECT COUNT(*) FROM parts")).fetchone()[0]
+                    if 'inventory_items' in table_names:
+                        stats['inventory_items'] = db_test.execute(text("SELECT COUNT(*) FROM inventory_items")).fetchone()[0]
                     if 'conversations' in table_names:
-                        conversation_count = db_test.execute(text("SELECT COUNT(*) FROM conversations")).fetchone()[0]
+                        stats['conversations'] = db_test.execute(text("SELECT COUNT(*) FROM conversations")).fetchone()[0]
 
                     status_info["components"]["database"] = {
                         "status": "healthy",
@@ -117,8 +165,7 @@ async def get_service_status():
                         "version": db_info.get("version", "Unknown")[:50] + "..." if db_info.get("version") else "Unknown",
                         "active_connections": db_info.get("active_connections", 0),
                         "tables_available": table_names,
-                        "client_count": client_count,
-                        "conversation_count": conversation_count,
+                        "record_counts": stats,
                     }
                 finally:
                     db_test.close()
@@ -138,11 +185,18 @@ async def get_service_status():
             from agents.sql_agent import run_sql_agent
             from agents.chat_agent import call_chat
             from agents.chart_agent import run_chart_agent
+            from agents.web_agent import run_web_agent
 
             status_info["components"]["ai_agents"] = {
                 "status": "healthy",
                 "message": "Agentes de IA carregados com sucesso",
-                "available_agents": ["sql_agent", "chat_agent", "chart_agent"]
+                "available_agents": ["sql_agent", "chat_agent", "chart_agent", "web_agent"],
+                "routing": {
+                    "sql": "Consultas ao banco de dados (clientes, veículos, ordens, inventário)",
+                    "chat": "Conversação geral e explicações",
+                    "grafico": "Visualização de dados com gráficos",
+                    "web": "Busca de vídeos no YouTube sobre mecânica"
+                }
             }
         except Exception as e:
             status_info["components"]["ai_agents"] = {
