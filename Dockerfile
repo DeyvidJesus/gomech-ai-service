@@ -38,11 +38,11 @@ RUN useradd --create-home --shell /bin/bash app && \
 USER app
 
 # Expose default port (Render substitui pelo $PORT em runtime)
-EXPOSE 8000
+EXPOSE 5000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:${PORT:-8000}/status || exit 1
+    CMD curl -f http://localhost:${PORT:-5000}/status || exit 1
 
 # Start
 CMD ["/app/entrypoint.sh"]
