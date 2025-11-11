@@ -19,10 +19,15 @@ Configure as seguintes variáveis no painel da Koyeb:
 DATABASE_URL=postgresql://username:password@host:port/database
 OPENAI_API_KEY=sk-your-openai-api-key
 
+# Backend Integration (para AuditAgent - LGPD e Auditoria)
+BACKEND_URL=http://localhost:8080
+
 # Opcionais
 LANGSMITH_API_KEY=your-langsmith-key
 LANGSMITH_TRACING=false
 ENVIRONMENT=production
+CORS_ORIGINS=*
+YOUTUBE_API_KEY=your-youtube-api-key
 ```
 
 ### Deploy Automático

@@ -50,7 +50,7 @@ CMD ["gunicorn", \
      "--worker-tmp-dir", "/dev/shm", \
      "--max-requests", "300", \
      "--max-requests-jitter", "50", \
-     "--timeout", "30", \
+     "--timeout", "180", \
      "--graceful-timeout", "20", \
      "--keep-alive", "5", \
      "--bind", "0.0.0.0:5000", \

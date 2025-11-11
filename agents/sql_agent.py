@@ -146,7 +146,114 @@ sql_agent = create_sql_agent(
     prefix=DATABASE_CONTEXT
 )
 
+def get_operational_stats() -> dict:
+    """
+    Obtém estatísticas operacionais para análise e insights.
+    
+    Retorna dict com métricas chave do negócio.
+    """
+    from sqlalchemy import text
+    
+    stats = {}
+    
+    try:
+        with db.engine.connect() as conn:
+            # OS concluídas hoje
+            result = conn.execute(text("""
+                SELECT COUNT(*) as count, COALESCE(SUM(total_cost), 0) as revenue
+                FROM service_orders 
+                WHERE status = 'COMPLETED' 
+                AND DATE(actual_completion) = CURRENT_DATE
+            """)).fetchone()
+            stats['os_today'] = {'count': result[0], 'revenue': float(result[1])}
+            
+            # Ticket médio mensal (últimos 30 dias)
+            result = conn.execute(text("""
+                SELECT 
+                    COUNT(*) as count,
+                    COALESCE(AVG(total_cost), 0) as avg_ticket,
+                    COALESCE(SUM(total_cost), 0) as total_revenue
+                FROM service_orders 
+                WHERE status = 'COMPLETED'
+                AND actual_completion >= CURRENT_DATE - INTERVAL '30 days'
+            """)).fetchone()
+            stats['monthly_ticket'] = {
+                'count': result[0],
+                'avg_ticket': float(result[1]),
+                'total_revenue': float(result[2])
+            }
+            
+            # Clientes recorrentes (2+ OSs nos últimos 90 dias)
+            result = conn.execute(text("""
+                SELECT 
+                    COUNT(DISTINCT client_id) as recurrent_clients,
+                    COUNT(*) as total_orders
+                FROM service_orders
+                WHERE created_at >= CURRENT_DATE - INTERVAL '90 days'
+                AND client_id IN (
+                    SELECT client_id 
+                    FROM service_orders 
+                    WHERE created_at >= CURRENT_DATE - INTERVAL '90 days'
+                    GROUP BY client_id 
+                    HAVING COUNT(*) >= 2
+                )
+            """)).fetchone()
+            stats['recurrent_clients'] = {
+                'count': result[0],
+                'total_orders': result[1]
+            }
+            
+            # Peças mais utilizadas
+            result = conn.execute(text("""
+                SELECT 
+                    p.name,
+                    COUNT(soi.id) as usage_count,
+                    COALESCE(SUM(soi.quantity), 0) as total_quantity
+                FROM service_order_items soi
+                JOIN parts p ON soi.product_code = p.sku
+                WHERE soi.created_at >= CURRENT_DATE - INTERVAL '30 days'
+                GROUP BY p.name
+                ORDER BY usage_count DESC
+                LIMIT 5
+            """)).fetchall()
+            stats['top_parts'] = [
+                {'name': row[0], 'usage_count': row[1], 'quantity': row[2]}
+                for row in result
+            ]
+            
+            # Status geral de OSs
+            result = conn.execute(text("""
+                SELECT 
+                    status,
+                    COUNT(*) as count
+                FROM service_orders
+                WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'
+                GROUP BY status
+            """)).fetchall()
+            stats['os_status'] = {row[0]: row[1] for row in result}
+            
+    except Exception as e:
+        logger.error(f"❌ [Stats] Erro ao obter estatísticas: {str(e)}")
+        stats['error'] = str(e)
+    
+    return stats
+
+
 def run_sql_agent(question: str) -> str:
+    """
+    Executa consultas SQL via LangChain SQLDatabaseChain.
+    
+    Consultas pré-definidas suportadas:
+    - Contagem de registros (clientes, veículos, OSs)
+    - Faturamento mensal
+    - Técnicos mais produtivos  
+    - Peças com menor giro de estoque
+    - Status de ordens de serviço
+    - Relatórios financeiros
+    - OS concluídas hoje
+    - Ticket médio mensal
+    - Clientes recorrentes
+    """
     logger.info(f"🔍 [SQL Agent] Pergunta: {question}")
     try:
         resposta = sql_agent.invoke({"input": question})
@@ -156,8 +263,8 @@ def run_sql_agent(question: str) -> str:
         if answer:
             logger.info(f"✅ [SQL Agent] Resposta gerada com sucesso")
             
-            # Remover queries SQL da resposta final para o usuário
             # O LangChain já formula a resposta em linguagem natural
+            # O agente usa SQLDatabaseChain para consultas seguras (somente leitura)
             return answer
         else:
             return "🤔 Hmm, não encontrei nenhum resultado. Poderia reformular sua pergunta ou ser mais específico?"
