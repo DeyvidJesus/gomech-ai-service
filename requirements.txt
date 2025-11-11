@@ -15,3 +15,5 @@ matplotlib
 seaborn
 pillow
 gunicorn
+rake-nltk
+requests

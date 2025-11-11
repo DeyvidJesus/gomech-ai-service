@@ -1,0 +1,335 @@
+{
+  "routes": {
+    "/dashboard": {
+      "name": "Dashboard",
+      "description_short": "Visão geral do negócio com métricas principais",
+      "description_full": "Painel central com indicadores chave de desempenho (KPIs), resumo de ordens de serviço, faturamento e alertas importantes.",
+      "main_fields": [
+        "Total de OSs abertas",
+        "Faturamento do mês",
+        "Clientes ativos",
+        "Estoque com alerta",
+        "Gráficos de desempenho"
+      ],
+      "possible_actions": [
+        "Visualizar métricas gerais",
+        "Acessar gráficos de desempenho",
+        "Ver alertas e notificações",
+        "Navegar para módulos específicos"
+      ],
+      "common_questions": [
+        "Como está o desempenho?",
+        "Quantas OSs temos abertas?",
+        "Qual o faturamento do mês?"
+      ]
+    },
+    "/service-orders": {
+      "name": "Ordens de Serviço",
+      "description_short": "Gestão completa de ordens de serviço",
+      "description_full": "Controle de todas as ordens de serviço da oficina, desde a criação até a conclusão.",
+      "main_fields": [
+        "Número da OS",
+        "Cliente",
+        "Veículo",
+        "Status (Pendente, Em Andamento, Concluída)",
+        "Técnico responsável",
+        "Valor total",
+        "Data de abertura",
+        "Previsão de conclusão"
+      ],
+      "possible_actions": [
+        "Criar nova ordem de serviço",
+        "Listar ordens (filtros por status, cliente, veículo)",
+        "Editar ordem existente",
+        "Adicionar peças e serviços",
+        "Alterar status",
+        "Imprimir OS",
+        "Ver histórico"
+      ],
+      "step_by_step_create": [
+        "1️⃣ Clique no botão 'Nova OS' (canto superior direito)",
+        "2️⃣ Selecione o cliente no dropdown (ou crie um novo clicando em '+')",
+        "3️⃣ Escolha o veículo do cliente",
+        "4️⃣ Descreva o problema relatado pelo cliente",
+        "5️⃣ Adicione o diagnóstico (se já identificado)",
+        "6️⃣ Adicione serviços e peças necessárias",
+        "7️⃣ Defina o técnico responsável",
+        "8️⃣ Configure valores (mão de obra, peças, desconto)",
+        "9️⃣ Salve a ordem de serviço"
+      ],
+      "common_questions": [
+        "Como criar uma OS?",
+        "Onde adiciono peças?",
+        "Como altero o status?",
+        "Quais OSs estão pendentes?"
+      ]
+    },
+    "/inventory": {
+      "name": "Estoque/Inventário",
+      "description_short": "Gestão de peças e controle de estoque",
+      "description_full": "Controle completo do inventário com movimentações, alertas de estoque mínimo e histórico.",
+      "main_fields": [
+        "Nome da peça",
+        "SKU/Código",
+        "Quantidade em estoque",
+        "Quantidade mínima",
+        "Localização",
+        "Custo unitário",
+        "Preço de venda"
+      ],
+      "possible_actions": [
+        "Visualizar itens em estoque",
+        "Adicionar entrada de peças",
+        "Registrar saída (venda/uso)",
+        "Verificar alertas de estoque baixo",
+        "Ver histórico de movimentações",
+        "Reservar peças para OS",
+        "Gerar relatórios de giro"
+      ],
+      "step_by_step_entry": [
+        "1️⃣ Vá para a aba 'Movimentações'",
+        "2️⃣ Clique em 'Nova Entrada'",
+        "3️⃣ Selecione a peça (ou cadastre nova)",
+        "4️⃣ Informe a quantidade",
+        "5️⃣ Digite o custo unitário",
+        "6️⃣ Adicione observações (opcional)",
+        "7️⃣ Confirme a entrada"
+      ],
+      "common_questions": [
+        "Como dou entrada em peças?",
+        "Qual o estoque atual?",
+        "Quais peças estão em falta?",
+        "Como reservo para uma OS?"
+      ]
+    },
+    "/clients": {
+      "name": "Clientes",
+      "description_short": "Cadastro e gestão de clientes",
+      "description_full": "Gerenciamento completo de clientes com histórico de serviços e veículos.",
+      "main_fields": [
+        "Nome",
+        "CPF/CNPJ",
+        "Telefone",
+        "Email",
+        "Endereço",
+        "Data de nascimento",
+        "Observações"
+      ],
+      "possible_actions": [
+        "Cadastrar novo cliente",
+        "Buscar clientes",
+        "Editar informações",
+        "Ver histórico de serviços",
+        "Listar veículos do cliente",
+        "Exportar dados",
+        "Excluir cliente (com confirmação)"
+      ],
+      "step_by_step_create": [
+        "1️⃣ Clique em 'Novo Cliente'",
+        "2️⃣ Preencha o nome completo",
+        "3️⃣ Informe CPF ou CNPJ",
+        "4️⃣ Adicione telefone e email",
+        "5️⃣ Complete o endereço (opcional)",
+        "6️⃣ Salve o cadastro",
+        "7️⃣ (Opcional) Cadastre um veículo para este cliente"
+      ],
+      "common_questions": [
+        "Como cadastrar cliente?",
+        "Como busco um cliente?",
+        "Onde vejo o histórico?",
+        "Como edito dados?"
+      ]
+    },
+    "/vehicles": {
+      "name": "Veículos",
+      "description_short": "Cadastro de veículos e histórico de manutenções",
+      "description_full": "Gestão de veículos com vínculo a clientes e histórico completo de serviços.",
+      "main_fields": [
+        "Placa",
+        "Marca",
+        "Modelo",
+        "Ano de fabricação",
+        "Cor",
+        "Quilometragem",
+        "Chassi",
+        "Cliente proprietário"
+      ],
+      "possible_actions": [
+        "Cadastrar novo veículo",
+        "Vincular a cliente",
+        "Atualizar quilometragem",
+        "Ver histórico de manutenções",
+        "Programar revisões",
+        "Editar dados técnicos",
+        "Imprimir ficha do veículo"
+      ],
+      "step_by_step_create": [
+        "1️⃣ Clique em 'Novo Veículo'",
+        "2️⃣ Digite a placa (formato AAA-9999 ou AAA9A99)",
+        "3️⃣ Selecione o cliente proprietário",
+        "4️⃣ Escolha marca e modelo",
+        "5️⃣ Informe o ano de fabricação",
+        "6️⃣ Adicione cor e quilometragem atual",
+        "7️⃣ (Opcional) Adicione chassi",
+        "8️⃣ Salve o veículo"
+      ],
+      "common_questions": [
+        "Como cadastrar veículo?",
+        "Como vincular a cliente?",
+        "Onde vejo o histórico?",
+        "Como atualizo KM?"
+      ]
+    },
+    "/parts": {
+      "name": "Peças",
+      "description_short": "Catálogo de peças e produtos",
+      "description_full": "Gerenciamento do catálogo de peças com controle de preços, custos e fornecedores.",
+      "main_fields": [
+        "Nome da peça",
+        "SKU/Código",
+        "Fabricante",
+        "Descrição",
+        "Custo unitário",
+        "Preço de venda",
+        "Markup",
+        "Ativo/Inativo"
+      ],
+      "possible_actions": [
+        "Cadastrar nova peça",
+        "Editar informações",
+        "Definir preços e custos",
+        "Calcular markup",
+        "Adicionar código de barras",
+        "Gerenciar fornecedores",
+        "Ativar/desativar peças"
+      ],
+      "step_by_step_create": [
+        "1️⃣ Clique em 'Nova Peça'",
+        "2️⃣ Preencha o nome da peça",
+        "3️⃣ Adicione SKU/código único",
+        "4️⃣ Informe o fabricante",
+        "5️⃣ Adicione descrição detalhada",
+        "6️⃣ Digite o custo unitário",
+        "7️⃣ Defina o preço de venda (ou use markup)",
+        "8️⃣ Salve a peça",
+        "9️⃣ (Opcional) Adicione ao estoque"
+      ],
+      "common_questions": [
+        "Como cadastrar peça?",
+        "O que é SKU?",
+        "Como calculo markup?",
+        "Onde vejo o preço?"
+      ]
+    },
+    "/users": {
+      "name": "Usuários",
+      "description_short": "Gestão de usuários e equipe",
+      "description_full": "Controle de acesso e permissões de usuários do sistema.",
+      "main_fields": [
+        "Nome",
+        "Email",
+        "Cargo/Role",
+        "Permissões",
+        "Status (Ativo/Inativo)",
+        "Último acesso"
+      ],
+      "possible_actions": [
+        "Cadastrar novo usuário",
+        "Definir cargo (Admin, Manager, User)",
+        "Configurar permissões",
+        "Ativar/desativar usuário",
+        "Redefinir senha",
+        "Ver histórico de atividades"
+      ],
+      "step_by_step_create": [
+        "1️⃣ Clique em 'Novo Usuário'",
+        "2️⃣ Preencha nome completo",
+        "3️⃣ Digite o email (será o login)",
+        "4️⃣ Defina senha inicial",
+        "5️⃣ Selecione o cargo (Admin, Manager, User)",
+        "6️⃣ Configure permissões específicas",
+        "7️⃣ Salve o usuário",
+        "8️⃣ Envie credenciais por email"
+      ],
+      "common_questions": [
+        "Como adicionar usuário?",
+        "Quais são os cargos?",
+        "Como defino permissões?",
+        "Como resetar senha?"
+      ]
+    },
+    "/analytics": {
+      "name": "Análises e Relatórios",
+      "description_short": "Relatórios e estatísticas do negócio",
+      "description_full": "Análises financeiras, operacionais e gráficos personalizados.",
+      "main_fields": [
+        "Período de análise",
+        "Tipo de relatório",
+        "Filtros",
+        "Métricas selecionadas",
+        "Gráficos"
+      ],
+      "possible_actions": [
+        "Gerar relatórios financeiros",
+        "Ver desempenho de técnicos",
+        "Analisar vendas por período",
+        "Criar gráficos personalizados",
+        "Exportar relatórios (PDF, Excel)",
+        "Comparar períodos",
+        "Ver tendências"
+      ],
+      "step_by_step_report": [
+        "1️⃣ Selecione o tipo de relatório desejado",
+        "2️⃣ Defina o período de análise",
+        "3️⃣ Aplique filtros (cliente, técnico, status, etc)",
+        "4️⃣ Escolha as métricas que quer ver",
+        "5️⃣ Clique em 'Gerar Relatório'",
+        "6️⃣ Analise os dados e gráficos",
+        "7️⃣ (Opcional) Exporte em PDF ou Excel"
+      ],
+      "common_questions": [
+        "Como gero relatório?",
+        "Quais relatórios existem?",
+        "Como exporto dados?",
+        "Como comparo períodos?"
+      ]
+    }
+  },
+  "common_flows": {
+    "complete_service": {
+      "name": "Fluxo Completo de Atendimento",
+      "steps": [
+        "1️⃣ Cliente chega com veículo",
+        "2️⃣ Cadastre o cliente (se novo) em /clients",
+        "3️⃣ Cadastre o veículo em /vehicles",
+        "4️⃣ Crie uma OS em /service-orders",
+        "5️⃣ Adicione serviços e peças necessárias",
+        "6️⃣ Técnico executa o serviço (altere status para 'Em Andamento')",
+        "7️⃣ Registre saída de peças do estoque em /inventory",
+        "8️⃣ Finalize a OS (status 'Concluída')",
+        "9️⃣ Gere cobrança e receba pagamento",
+        "🔟 Cliente retira o veículo"
+      ]
+    },
+    "stock_management": {
+      "name": "Gestão de Estoque",
+      "steps": [
+        "1️⃣ Cadastre peças em /parts",
+        "2️⃣ Dê entrada no estoque em /inventory",
+        "3️⃣ Configure estoque mínimo para alertas",
+        "4️⃣ Monitore níveis de estoque regularmente",
+        "5️⃣ Quando estoque baixar, faça nova compra",
+        "6️⃣ Registre saídas ao usar em OSs",
+        "7️⃣ Analise giro de estoque em /analytics"
+      ]
+    }
+  },
+  "glossary": {
+    "OS": "Ordem de Serviço - Documento que registra um serviço",
+    "SKU": "Stock Keeping Unit - Código único de identificação",
+    "Markup": "Percentual sobre o custo para formar o preço",
+    "KPI": "Key Performance Indicator - Indicador de desempenho",
+    "Giro de Estoque": "Frequência de renovação do estoque"
+  }
+}
+

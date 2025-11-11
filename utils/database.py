@@ -1,5 +1,7 @@
 import time
 import logging
+
+from sqlalchemy import text
 from sqlalchemy.exc import OperationalError, DisconnectionError
 from functools import wraps
 
@@ -39,7 +41,7 @@ def test_database_connection(engine):
     """
     try:
         with engine.connect() as conn:
-            result = conn.execute("SELECT 1")
+            result = conn.execute(text("SELECT 1"))
             logger.info("✅ Conexão com banco de dados estabelecida com sucesso")
             return True
     except Exception as e:
@@ -53,15 +55,15 @@ def get_database_info(engine):
     try:
         with engine.connect() as conn:
             # Versão do PostgreSQL
-            version_result = conn.execute("SELECT version()")
+            version_result = conn.execute(text("SELECT version()"))
             version = version_result.fetchone()[0]
             
             # Número de conexões ativas
-            connections_result = conn.execute("""
+            connections_result = conn.execute(text("""
                 SELECT count(*) 
                 FROM pg_stat_activity 
                 WHERE state = 'active'
-            """)
+            """))
             active_connections = connections_result.fetchone()[0]
             
             return {

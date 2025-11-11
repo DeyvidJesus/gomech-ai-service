@@ -1,31 +1,28 @@
-# Use Python 3.11 slim image
 FROM python:3.11-slim
 
-# Set environment variables
+# Evita cache e melhora performance
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONMALLOC=malloc \
+    MALLOC_ARENA_MAX=2
 
-# Set work directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    libpq-dev \
-    curl \
-    postgresql-client \
+# Cria usuário não-root
+RUN adduser --disabled-password --gecos '' appuser
+
+# Instala dependências mínimas do sistema
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
+# Copia dependências e instala pacotes
 COPY requirements.txt .
+RUN pip install --upgrade pip \
+    && pip install -r requirements.txt
 
-# Install Python dependencies
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
-
-# Copy application code
+# Copia a aplicação
 COPY . .
 
 # Copy entrypoint
@@ -42,7 +39,19 @@ EXPOSE 5000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:${PORT:-5000}/status || exit 1
+    CMD curl -f http://localhost:${PORT:-5000}/health || exit 1
 
-# Start
-CMD ["/app/entrypoint.sh"]
+# Usa Gunicorn com UvicornWorker para FastAPI
+CMD ["gunicorn", \
+     "-k", "uvicorn.workers.UvicornWorker", \
+     "--workers", "1", \
+     "--threads", "2", \
+     "--worker-tmp-dir", "/dev/shm", \
+     "--max-requests", "300", \
+     "--max-requests-jitter", "50", \
+     "--timeout", "180", \
+     "--graceful-timeout", "20", \
+     "--keep-alive", "5", \
+     "--bind", "0.0.0.0:5000", \
+     "main:app"]
+

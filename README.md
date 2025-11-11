@@ -19,10 +19,15 @@ Configure as seguintes variáveis no painel da Koyeb:
 DATABASE_URL=postgresql://username:password@host:port/database
 OPENAI_API_KEY=sk-your-openai-api-key
 
+# Backend Integration (para AuditAgent - LGPD e Auditoria)
+BACKEND_URL=http://localhost:8080
+
 # Opcionais
 LANGSMITH_API_KEY=your-langsmith-key
 LANGSMITH_TRACING=false
 ENVIRONMENT=production
+CORS_ORIGINS=*
+YOUTUBE_API_KEY=your-youtube-api-key
 ```
 
 ### Deploy Automático
@@ -81,6 +86,12 @@ O serviço cria as seguintes tabelas:
 
 ## 🔧 Desenvolvimento Local
 
+### Pré-requisitos
+
+- Python 3.11 ou superior
+- PostgreSQL 16 (local ou remoto)
+- pip (gerenciador de pacotes Python)
+
 ### Instalação
 
 ```bash
@@ -88,18 +99,51 @@ O serviço cria as seguintes tabelas:
 git clone <repo-url>
 cd gomech-ai-service
 
-# 2. Instale dependências
+# 2. Crie um ambiente virtual (venv)
+python3 -m venv venv
+
+# 3. Ative o ambiente virtual
+# No Linux/macOS:
+source venv/bin/activate
+
+# No Windows:
+# venv\Scripts\activate
+
+# 4. Atualize pip (recomendado)
+pip install --upgrade pip
+
+# 5. Instale as dependências
 pip install -r requirements.txt
 
-# 3. Configure variáveis de ambiente
+# 6. Configure variáveis de ambiente
 cp env.example .env
 # Edite .env com suas configurações
 
-# 4. Execute migrações
+# 7. Execute migrações do banco
 alembic upgrade head
 
-# 5. Inicie o servidor
+# 8. Inicie o servidor
 python main.py
+```
+
+### Gerenciamento do Ambiente Virtual
+
+```bash
+# Ativar ambiente virtual
+source venv/bin/activate  # Linux/macOS
+# venv\Scripts\activate   # Windows
+
+# Desativar ambiente virtual
+deactivate
+
+# Verificar pacotes instalados
+pip list
+
+# Atualizar requirements.txt (se adicionar novos pacotes)
+pip freeze > requirements.txt
+
+# Reinstalar dependências (após git pull)
+pip install -r requirements.txt --upgrade
 ```
 
 ### Estrutura do Projeto
@@ -196,12 +240,32 @@ Os logs são estruturados e incluem:
 Para habilitar logs detalhados:
 
 ```bash
-# Desenvolvimento
+# Desenvolvimento (com venv ativo)
+source venv/bin/activate  # Ative o venv primeiro
 export LOG_LEVEL=DEBUG
 python main.py
 
 # Produção (via Gunicorn)
 gunicorn main:app --log-level debug
+```
+
+### Testes Locais
+
+```bash
+# Ative o ambiente virtual
+source venv/bin/activate
+
+# Teste o health check
+curl http://localhost:5000/health
+
+# Teste o endpoint de chat
+curl -X POST http://localhost:5000/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "Quantos clientes temos?",
+    "user_id": 1,
+    "thread_id": "test-thread"
+  }'
 ```
 
 ## 📈 Performance
@@ -227,12 +291,182 @@ gunicorn main:app --log-level debug
 - **Rate Limiting**: Considere implementar
 - **Input Validation**: Schemas Pydantic
 - **SQL Injection**: Protegido pelo SQLAlchemy
+- **Ambiente Virtual**: Use venv para isolar dependências
+
+## 📝 Boas Práticas de Desenvolvimento
+
+### 1. Sempre Use Ambiente Virtual
+
+```bash
+# SEMPRE ative o venv antes de trabalhar
+source venv/bin/activate
+
+# Verifique se está no venv (deve aparecer (venv) no prompt)
+which python  # Deve apontar para venv/bin/python
+```
+
+### 2. Mantenha Dependências Atualizadas
+
+```bash
+# Verificar pacotes desatualizados
+pip list --outdated
+
+# Atualizar pacote específico
+pip install --upgrade nome-do-pacote
+
+# Atualizar requirements.txt
+pip freeze > requirements.txt
+```
+
+### 3. Estrutura de Diretórios
+
+```
+gomech-ai-service/
+├── venv/                  # Ambiente virtual (NÃO commitar)
+├── agents/                # Agentes de IA
+├── alembic/              # Migrações
+├── utils/                # Utilitários
+├── .env                  # Variáveis (NÃO commitar)
+├── .gitignore            # Ignora venv, .env, __pycache__
+├── requirements.txt      # Dependências
+└── main.py              # App principal
+```
+
+### 4. .gitignore Recomendado
+
+```
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Logs
+*.log
+```
+
+## 🐛 Troubleshooting Detalhado
+
+### Erro: "ModuleNotFoundError"
+
+```bash
+# Causa: Ambiente virtual não ativado ou dependências não instaladas
+# Solução:
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+### Erro: "Command 'python' not found"
+
+```bash
+# Causa: Python não instalado ou não no PATH
+# Solução:
+# Instale Python 3.11+
+sudo apt-get install python3.11 python3.11-venv  # Ubuntu/Debian
+# ou
+brew install python@3.11  # macOS
+
+# Use python3 explicitamente
+python3 -m venv venv
+```
+
+### Erro: "Permission denied" ao ativar venv
+
+```bash
+# Causa: Problemas de permissão
+# Solução:
+chmod +x venv/bin/activate
+source venv/bin/activate
+```
+
+### Erro: "SQLAlchemy connection error"
+
+```bash
+# Causa: DATABASE_URL incorreta ou PostgreSQL não acessível
+# Solução:
+# 1. Verifique .env
+cat .env | grep DATABASE_URL
+
+# 2. Teste conexão PostgreSQL
+psql $DATABASE_URL
+
+# 3. Verifique se PostgreSQL está rodando
+docker-compose ps postgres  # Se usando Docker
+# ou
+sudo systemctl status postgresql  # Linux
+```
+
+### Erro: "relation 'messages' does not exist"
+
+```bash
+# Causa: Tabelas não criadas no banco de dados
+# Solução:
+
+# 1. Aplique as migrations
+source venv/bin/activate  # Ative o venv primeiro
+alembic upgrade head
+
+# 2. Se o erro persistir, crie as tabelas manualmente
+# (veja TROUBLESHOOTING.md para script SQL completo)
+
+# 3. Marque a migration como aplicada
+alembic stamp head
+
+# 4. Verifique o estado
+alembic current
+# Deve mostrar: 001 (head)
+
+# 5. Reinicie o serviço
+python main.py
+```
+
+**Nota**: Para instruções completas de troubleshooting, consulte o arquivo `TROUBLESHOOTING.md`.
 
 ## 📞 Suporte
 
 Para problemas ou dúvidas:
 
-1. Verifique os logs do serviço
-2. Consulte este README
-3. Verifique o status das dependências
-4. Entre em contato com a equipe de desenvolvimento
+1. **Verifique o ambiente virtual**: `which python` deve apontar para `venv/bin/python`
+2. **Verifique os logs**: `docker-compose logs fastapi` (Docker) ou `tail -f logs/app.log` (local)
+3. **Consulte este README**: Especialmente seções de Troubleshooting
+4. **Verifique dependências**: `pip list` no venv ativado
+5. **Status do serviço**: `curl http://localhost:5000/status`
+6. **Entre em contato**: equipe de desenvolvimento
+
+---
+
+## 🚀 Quick Start (Resumo)
+
+```bash
+# Setup inicial
+git clone <repo-url>
+cd gomech-ai-service
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+cp env.example .env
+# Edite .env com suas credenciais
+alembic upgrade head
+python main.py
+
+# Uso diário
+source venv/bin/activate  # Sempre primeiro!
+python main.py            # Inicia servidor
+
+# Deploy Docker
+docker-compose up -d      # Não precisa de venv no container
+```
+
+**Última atualização:** 2025-11-07  
+**Versão:** 2.0.0 (com suporte venv)
