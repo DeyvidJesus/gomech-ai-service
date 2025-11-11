@@ -20,8 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copia dependências e instala pacotes
 COPY requirements.txt .
 RUN pip install --upgrade pip \
-    && pip install -r requirements.txt \
-    && pip cache purge
+    && pip install -r requirements.txt
 
 # Copia a aplicação
 COPY . .
