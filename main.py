@@ -26,6 +26,7 @@ from agents.simulation_agent import run_simulation_agent, simulate_price_change,
 from router_agent import route_question, route_multimodal_input
 from schemas import ChatResponse, ChatRequest, PendingAction, ActionConfirmation
 from models import User
+import requests
 
 load_dotenv()
 
@@ -67,6 +68,94 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# ==============================
+# Funções Auxiliares
+# ==============================
+
+def execute_action(endpoint: str, method: str, params: dict) -> dict:
+    """
+    Executa uma ação fazendo chamada HTTP ao backend Java.
+    
+    Args:
+        endpoint: Endpoint da API (ex: /clients)
+        method: Método HTTP (POST, PUT, PATCH, DELETE)
+        params: Parâmetros da requisição
+    
+    Returns:
+        Dict com status, message e result
+    """
+    try:
+        backend_url = os.getenv("BACKEND_URL", "http://localhost:8080")
+        
+        # Substituir placeholders no endpoint (ex: {id})
+        params_copy = params.copy()
+        for key, value in params_copy.items():
+            placeholder = f"{{{key}}}"
+            if placeholder in endpoint:
+                endpoint = endpoint.replace(placeholder, str(value))
+                # Remover parâmetro já usado no path
+                del params[key]
+                break
+        
+        url = f"{backend_url}{endpoint}"
+        logging.info(f"🚀 [Action Execution] {method} {url} - Params: {params}")
+        
+        if method == "POST":
+            response = requests.post(url, json=params, timeout=180)
+        elif method == "PUT":
+            response = requests.put(url, json=params, timeout=180)
+        elif method == "PATCH":
+            response = requests.patch(url, json=params, timeout=180)
+        elif method == "DELETE":
+            response = requests.delete(url, timeout=180)
+        else:
+            return {
+                "status": "error",
+                "message": f"Método HTTP não suportado: {method}"
+            }
+        
+        # Verificar resultado
+        if response.status_code in [200, 201, 204]:
+            logging.info(f"✅ [Action Execution] Sucesso: {response.status_code}")
+            
+            result_data = {}
+            if response.text:
+                try:
+                    result_data = response.json()
+                except:
+                    result_data = {"response": response.text}
+            
+            return {
+                "status": "success",
+                "message": "Ação executada com sucesso! ✅",
+                "result": result_data
+            }
+        else:
+            logging.error(f"❌ [Action Execution] Erro: {response.status_code} - {response.text}")
+            return {
+                "status": "error",
+                "message": f"Erro ao executar ação: {response.status_code}",
+                "error": response.text
+            }
+            
+    except requests.exceptions.Timeout:
+        return {
+            "status": "error",
+            "message": "Tempo esgotado ao executar ação no backend"
+        }
+    except requests.exceptions.ConnectionError:
+        return {
+            "status": "error",
+            "message": "Não foi possível conectar ao backend"
+        }
+    except Exception as e:
+        logging.exception(f"💥 [Action Execution] Erro: {str(e)}")
+        return {
+            "status": "error",
+            "message": f"Erro ao executar ação: {str(e)}"
+        }
+
 
 # ==============================
 # Endpoints
@@ -131,6 +220,42 @@ async def chat(req: ChatRequest, db: Session = Depends(get_db)):
                 # Não é um comando, encaminhar para chat
                 return await call_chat(req, db)
             
+            # Verificar se a ação deve ser executada automaticamente
+            if action_result.get("auto_execute") and not action_result.get("pending_confirmation"):
+                # Executar ação imediatamente
+                execution_result = execute_action(
+                    endpoint=action_result["endpoint"],
+                    method=action_result["method"],
+                    params=action_result["params"]
+                )
+                
+                # Preparar resposta baseada no resultado da execução
+                if execution_result["status"] == "success":
+                    reply_text = f"✅ {action_result['action_description']} realizado com sucesso!"
+                    
+                    # Adicionar informações do resultado, se disponíveis
+                    result_data = execution_result.get("result", {})
+                    if result_data:
+                        # Extrair informações relevantes do cliente cadastrado
+                        if "name" in result_data:
+                            reply_text += f"\n\n📋 **Cliente cadastrado:**\n• Nome: {result_data.get('name')}"
+                            if result_data.get('phone'):
+                                reply_text += f"\n• Telefone: {result_data.get('phone')}"
+                            if result_data.get('email'):
+                                reply_text += f"\n• E-mail: {result_data.get('email')}"
+                            if result_data.get('id'):
+                                reply_text += f"\n• ID: {result_data.get('id')}"
+                else:
+                    reply_text = f"❌ Erro ao executar {action_result['action_description']}:\n{execution_result.get('message', 'Erro desconhecido')}"
+                
+                return {
+                    "reply": reply_text,
+                    "thread_id": req.thread_id or "unknown",
+                    "action_executed": True,
+                    "execution_result": execution_result
+                }
+            
+            # Se não for auto-execute, retornar pedindo confirmação
             response = {
                 "reply": action_result.get("reply", "Comando processado"),
                 "thread_id": req.thread_id or "unknown"
@@ -523,80 +648,23 @@ async def confirm_action(confirmation: ActionConfirmation):
     
     Faz chamada HTTP ao backend Java para executar a ação.
     """
-    try:
-        import requests
-        
-        backend_url = os.getenv("BACKEND_URL", "http://localhost:8080")
-        endpoint = confirmation.endpoint
-        method = confirmation.method
-        params = confirmation.params
-        
-        # Substituir placeholders no endpoint (ex: {id})
-        for key, value in params.items():
-            placeholder = f"{{{key}}}"
-            if placeholder in endpoint:
-                endpoint = endpoint.replace(placeholder, str(value))
-                # Remover parâmetro já usado no path
-                del params[key]
-                break
-        
-        url = f"{backend_url}{endpoint}"
-        logging.info(f"🚀 [Action Execution] {method} {url} - Params: {params}")
-        
-        if method == "POST":
-            response = requests.post(url, json=params, timeout=180)
-        elif method == "PUT":
-            response = requests.put(url, json=params, timeout=180)
-        elif method == "PATCH":
-            response = requests.patch(url, json=params, timeout=180)
-        elif method == "DELETE":
-            response = requests.delete(url, timeout=180)
+    result = execute_action(
+        endpoint=confirmation.endpoint,
+        method=confirmation.method,
+        params=confirmation.params
+    )
+    
+    # Converter erros em HTTPException para manter compatibilidade
+    if result["status"] == "error":
+        error_message = result.get("message", "Erro ao executar ação")
+        if "Tempo esgotado" in error_message:
+            raise HTTPException(status_code=408, detail=error_message)
+        elif "conectar ao backend" in error_message:
+            raise HTTPException(status_code=503, detail=error_message)
         else:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Método HTTP não suportado: {method}"
-            )
-        
-        # Verificar resultado
-        if response.status_code in [200, 201, 204]:
-            logging.info(f"✅ [Action Execution] Sucesso: {response.status_code}")
-            
-            result_data = {}
-            if response.text:
-                try:
-                    result_data = response.json()
-                except:
-                    result_data = {"response": response.text}
-            
-            return {
-                "status": "success",
-                "message": "Ação executada com sucesso! ✅",
-                "result": result_data
-            }
-        else:
-            logging.error(f"❌ [Action Execution] Erro: {response.status_code} - {response.text}")
-            return {
-                "status": "error",
-                "message": f"Erro ao executar ação: {response.status_code}",
-                "error": response.text
-            }
-            
-    except requests.exceptions.Timeout:
-        raise HTTPException(
-            status_code=408,
-            detail="Tempo esgotado ao executar ação no backend"
-        )
-    except requests.exceptions.ConnectionError:
-        raise HTTPException(
-            status_code=503,
-            detail="Não foi possível conectar ao backend"
-        )
-    except Exception as e:
-        logging.exception(f"💥 [Action Execution] Erro: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Erro ao executar ação: {str(e)}"
-        )
+            raise HTTPException(status_code=500, detail=error_message)
+    
+    return result
 
 
 # ========================================

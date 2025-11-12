@@ -25,7 +25,8 @@ ACTION_MAPPINGS = {
         "description": "Cadastrar um novo cliente",
         "required_params": ["name"],
         "optional_params": ["cpf", "phone", "email", "address", "city", "state", "zipCode", "observations"],
-        "confirmation_message": "Deseja cadastrar o cliente '{name}'?"
+        "confirmation_message": "Deseja cadastrar o cliente '{name}'?",
+        "auto_execute": True  # Executa automaticamente sem confirmação
     },
     "create_service_order": {
         "endpoint": "/service-orders",
@@ -324,7 +325,25 @@ def run_action_agent(message: str) -> Dict[str, Any]:
             "reply": _generate_missing_params_message(action, missing)
         }
     
-    # 5. Gerar mensagem de confirmação
+    # 5. Verificar se a ação deve ser executada automaticamente
+    auto_execute = action_config.get("auto_execute", False)
+    
+    if auto_execute:
+        # Ação será executada automaticamente, sem confirmação
+        return {
+            "is_command": True,
+            "action": action,
+            "params": params,
+            "missing_params": [],
+            "pending_confirmation": False,
+            "auto_execute": True,
+            "action_description": action_config["description"],
+            "endpoint": action_config["endpoint"],
+            "method": action_config["method"],
+            "reply": f"⏳ Executando: {action_config['description']}..."
+        }
+    
+    # 6. Gerar mensagem de confirmação (para ações que precisam)
     confirmation_msg = action_config["confirmation_message"]
     
     # Substituir placeholders na mensagem
@@ -337,6 +356,7 @@ def run_action_agent(message: str) -> Dict[str, Any]:
         "params": params,
         "missing_params": [],
         "pending_confirmation": True,
+        "auto_execute": False,
         "confirmation_message": confirmation_msg,
         "action_description": action_config["description"],
         "endpoint": action_config["endpoint"],
